@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'">
+<title>Painel</title>
+<style>
+  :root {
+    --bg: #14161b; --card: #1b1e25; --line: #272b34;
+    --text: #e6e8ec; --muted: #8b919d;
+    --gold: #f0b23e; --cyan: #5fd3e6; --live: #4ade80; --off: #f87171;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--bg); color: var(--text); font: 13px/1.4 "Segoe UI", system-ui, sans-serif; padding: 12px; overflow-y: auto; height: 100vh; }
+  header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  header h1 { font-size: 15px; font-weight: 600; flex: 1; }
+  .panel { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .muted { color: var(--muted); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--off); display: inline-block; margin-right: 6px; }
+  .dot.on { background: var(--live); }
+  .name { font-weight: 600; font-size: 14px; }
+  .xp { color: var(--gold); font-weight: 700; font-size: 16px; }
+  .sub { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .chip { background: #23272f; border: 1px solid var(--line); border-radius: 999px; padding: 3px 4px 3px 10px; display: flex; align-items: center; gap: 6px; }
+  .chip button { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 14px; padding: 0 6px; }
+  .chip button:hover { color: var(--off); }
+  form { display: flex; gap: 6px; margin-top: 8px; }
+  input { flex: 1; background: #0f1115; border: 1px solid var(--line); color: var(--text); border-radius: 6px; padding: 6px 8px; }
+  input:focus-visible, button:focus-visible { outline: 2px solid var(--cyan); outline-offset: 1px; }
+  .btn { background: #23272f; border: 1px solid var(--line); color: var(--text); border-radius: 6px; padding: 5px 10px; cursor: pointer; }
+  .btn:hover { border-color: var(--cyan); }
+  .tools { display: flex; gap: 6px; margin-top: 8px; }
+  .empty { color: var(--muted); font-size: 12px; margin-top: 8px; }
+</style>
+</head>
+<body>
+  <header><h1>Contas</h1><span class="muted" id="count"></span></header>
+
+  <section class="panel">
+    <div class="row"><strong>Lives em segundo plano</strong><span class="muted" id="liveCount"></span></div>
+    <div class="chips" id="chips"></div>
+    <form id="addForm">
+      <input id="chan" placeholder="Nome do canal da Twitch" autocomplete="off">
+      <button class="btn" type="submit">Adicionar</button>
+    </form>
+  </section>
+
+  <div id="accounts"></div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const fmt = (v) => v ?? '—';
+
+  function render(state) {
+    const { stats, twitch, accounts = 4 } = state;
+
+    $('liveCount').textContent = twitch.length ? `${twitch.length} ativa${twitch.length > 1 ? 's' : ''}` : '';
+    $('chips').innerHTML = twitch.length
+      ? twitch.map(c => `<span class="chip"><span class="dot on"></span>${c}<button aria-label="Remover ${c}" data-rm="${c}">×</button></span>`).join('')
+      : '<span class="empty">Nenhuma live. Adicione um canal para rodar em segundo plano.</span>';
+
+    const ativas = stats.filter(Boolean).length;
+    $('count').textContent = `${ativas}/${accounts} online`;
+
+    let html = '';
+    for (let i = 0; i < accounts; i++) {
+      const s = stats[i];
+      html += `
+        <article class="panel">
+          <div class="row">
+            <span class="name"><span class="dot ${s ? 'on' : ''}"></span>Conta ${i + 1}</span>
+            <span class="xp">${s ? fmt(s.xpH) + ' XP/h' : 'sem dados'}</span>
+          </div>
+          <div class="sub">${s ? (s.hunting ? 'Caçando' : 'Parado') : 'Carregando…'} · Lucro ${s ? fmt(s.profitH) : '—'}/h</div>
+          <div class="tools">
+            <button class="btn" data-reload="${i}">Recarregar</button>
+            <button class="btn" data-dev="${i}">DevTools</button>
+          </div>
+        </article>`;
+    }
+    $('accounts').innerHTML = html;
+  }
+
+  document.addEventListener('click', async (e) => {
+    const t = e.target;
+    if (t.dataset.rm) render({ ...(await api.getState()), twitch: await api.removeLive(t.dataset.rm) });
+    if (t.dataset.reload) api.reload(+t.dataset.reload);
+    if (t.dataset.dev) api.devtools(+t.dataset.dev);
+  });
+
+  $('addForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const v = $('chan').value; $('chan').value = '';
+    if (v.trim()) render({ ...(await api.getState()), twitch: await api.addLive(v) });
+  });
+
+  api.getState().then(render);
+  api.onState(render);
+</script>
+</body>
+</html>

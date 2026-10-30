@@ -1,0 +1,22 @@
+{
+  "name": "pokeidle-multi",
+  "version": "0.1.0",
+  "description": "Navegador multi-conta para PokeIdle com painel de sessão e lives em segundo plano",
+  "author": "pokeidle-multi",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win portable --publish never"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "com.pokeidle.multi",
+    "productName": "PokeidleMulti",
+    "files": ["main.js", "preload.js", "dashboard.html", "package.json"],
+    "win": { "target": "portable" },
+    "portable": { "artifactName": "PokeidleMulti.exe" }
+  }
+}
